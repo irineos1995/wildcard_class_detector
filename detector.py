@@ -2,30 +2,54 @@ from bs4 import BeautifulSoup
 from bs4 import NavigableString, Tag, Doctype
 
 
-# Base case
-def get_parents_recursively(tree, wildcard_classes):
+def get_parents_recursively(tree, parentless_classes):
     if not tree:
-        return wildcard_classes
+        return parentless_classes
     else:
         if "childGenerator" in dir(tree):
             for child in tree.childGenerator():
                 if isinstance(child, Tag):
                     child_class = child.get("class", [])
                     if child_class:
-                        # parents = [tuple(parent.get('class', ())) for parent in child.parents]
                         direct_parent = tuple(child.parent.get('class',())) if child.parent else None
-                        # print(f'{tuple(child_class)} has DIRECT parent {direct_parent}')
                         if not direct_parent:
-                            wildcard_classes.append(tuple(child_class))
+                            parentless_classes.append(tuple(child_class))
                 else:
                     continue
-                get_parents_recursively(child, wildcard_classes)
+                get_parents_recursively(child, parentless_classes)
         else:
             if not tree.isspace(): #Just to avoid printing "\n" parsed from document.
                 pass
-    return wildcard_classes
+    return parentless_classes
 
-def orphan_classes(source_code_file):
+def get_children_recursively(tree, childless_classes):
+    if not tree:
+        return childless_classes
+    else:
+        if "childGenerator" in dir(tree):
+            for child in tree.childGenerator():
+                if isinstance(child, Tag):
+                    child_class = child.get("class", [])
+                    if child_class:
+                        found_tag = False
+                        for element in child.children:
+                            if isinstance(element, Tag):
+                                found_tag = True
+                                direct_child = tuple(element.get('class',()))
+                                if not direct_child:
+                                    childless_classes.append(tuple(child_class))
+                                break
+                        if not found_tag:
+                            childless_classes.append(tuple(child_class))
+                else:
+                    continue
+                get_children_recursively(child, childless_classes)
+        else:
+            if not tree.isspace(): #Just to avoid printing "\n" parsed from document.
+                pass
+    return childless_classes
+
+def get_parentless_classes(source_code_file):
     '''
         This function is responsible for identifying CSS classes that have no DIRECT parents.
         That is a good indication that those classes belong to the "wildcard" category.
@@ -34,7 +58,25 @@ def orphan_classes(source_code_file):
         parsed_code = BeautifulSoup(source_code, 'html.parser')
         for child in parsed_code.childGenerator():
             if isinstance(child, Tag):
-                wildcard_classes = get_parents_recursively(child, wildcard_classes=[])
-                print(wildcard_classes)
+                parentless_classes = get_parents_recursively(child, parentless_classes=[])
+                return parentless_classes
 
-orphan_classes('test_cases/case1.html')
+def get_childless_classes(source_code_file):
+    '''
+        This function is responsible for identifying CSS classes that have no DIRECT children.
+        That is a good indication that those classes belong to the "wildcard" category.
+    '''
+    with open(source_code_file, 'r') as source_code:
+        parsed_code = BeautifulSoup(source_code, 'html.parser')
+        for child in parsed_code.childGenerator():
+            if isinstance(child, Tag):
+                childless_classes = get_children_recursively(child, childless_classes=[])
+                return childless_classes
+
+
+def get_wildcard_classes(source_code_file):
+    parentless_classes = set(get_parentless_classes(source_code_file))
+    childless_classes = set(get_childless_classes(source_code_file))
+    return parentless_classes.intersection(childless_classes)
+
+print(get_wildcard_classes('test_cases/case1.html'))
