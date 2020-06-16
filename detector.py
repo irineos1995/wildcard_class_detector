@@ -91,10 +91,13 @@ def get_parents_of_child(tree, class_parents_dict):
                     if child_class:
                         if child_class not in class_parents_dict:
                             if child.parent and child.parent.get('class', ()):
-                                class_parents_dict[child_class] = [tuple(child.parent.get('class', ()))]
+                                parent_class = tuple(sorted(child.parent.get('class', [])))
+                                class_parents_dict[child_class] = [parent_class]
                         else:
                             if child.parent and child.parent.get('class', ()):
-                                class_parents_dict[child_class].append(tuple(child.parent.get('class', ())))
+                                parent_class = tuple(sorted(child.parent.get('class', [])))
+                                if parent_class not in class_parents_dict[child_class]:
+                                    class_parents_dict[child_class].append(parent_class)
                 else:
                     continue
                 get_parents_of_child(child, class_parents_dict)
