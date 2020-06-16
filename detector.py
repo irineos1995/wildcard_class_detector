@@ -74,50 +74,52 @@ def get_childless_classes(source_code_file):
                 return childless_classes
 
 
-def get_wildcard_classes(source_code_file):
-    parentless_classes = set(get_parentless_classes(source_code_file))
-    childless_classes = set(get_childless_classes(source_code_file))
-    return parentless_classes.intersection(childless_classes)
-
-
-def get_parents_of_child(tree, class_parents_dict):
+def get_parents_of_child(tree, child_parents_dict):
     if not tree:
-        return class_parents_dict
+        return child_parents_dict
     else:
         if "childGenerator" in dir(tree):
             for child in tree.childGenerator():
                 if isinstance(child, Tag):
                     child_class = tuple(sorted(child.get('class', []))) if child.get('class', []) else ()
                     if child_class:
-                        if child_class not in class_parents_dict:
+                        if child_class not in child_parents_dict:
                             if child.parent and child.parent.get('class', ()):
                                 parent_class = tuple(sorted(child.parent.get('class', [])))
-                                class_parents_dict[child_class] = [parent_class]
+                                child_parents_dict[child_class] = [parent_class]
                         else:
                             if child.parent and child.parent.get('class', ()):
                                 parent_class = tuple(sorted(child.parent.get('class', [])))
-                                if parent_class not in class_parents_dict[child_class]:
-                                    class_parents_dict[child_class].append(parent_class)
+                                if parent_class not in child_parents_dict[child_class]:
+                                    child_parents_dict[child_class].append(parent_class)
                 else:
                     continue
-                get_parents_of_child(child, class_parents_dict)
+                get_parents_of_child(child, child_parents_dict)
         else:
             if not tree.isspace(): #Just to avoid printing "\n" parsed from document.
                 pass
-    return class_parents_dict
+    return child_parents_dict
 
 def get_parents_of_each_class(source_code_file):
     '''
         This function is responsible for identifying CSS classes' DIRECT parent.
     '''
-    class_parents_dict = {}
+    child_parents_dict = {}
     with open(source_code_file, 'r') as source_code:
         parsed_code = BeautifulSoup(source_code, 'html.parser')
         for child in parsed_code.childGenerator():
             if isinstance(child, Tag):
-                class_parents_dict = get_parents_of_child(child, class_parents_dict={})
-    return class_parents_dict
+                child_parents_dict = get_parents_of_child(child, child_parents_dict={})
+    return child_parents_dict
+
+
+def get_wildcard_classes(source_code_file, threshold=3):
+    wildcard_classes = []
+    child_parents_dict = get_parents_of_each_class(source_code_file)
+    for child_cls, parents in child_parents_dict.items():
+        if len(parents) >= threshold:
+            wildcard_classes.append(child_cls)
+    return wildcard_classes
                 
 
-# print(get_wildcard_classes('test_cases/case1.html'))
-print(get_parents_of_each_class('test_cases/case1.html'))
+print(get_wildcard_classes('test_cases/case1.html'))
