@@ -80,14 +80,14 @@ def get_wildcard_classes(source_code_file):
     return parentless_classes.intersection(childless_classes)
 
 
-def get_parents_recursively_(tree, class_parents_dict):
+def get_parents_of_child(tree, class_parents_dict):
     if not tree:
         return class_parents_dict
     else:
         if "childGenerator" in dir(tree):
             for child in tree.childGenerator():
                 if isinstance(child, Tag):
-                    child_class = tuple(child.get('class', ()))
+                    child_class = tuple(sorted(child.get('class', []))) if child.get('class', []) else ()
                     if child_class:
                         if child_class not in class_parents_dict:
                             if child.parent and child.parent.get('class', ()):
@@ -97,7 +97,7 @@ def get_parents_recursively_(tree, class_parents_dict):
                                 class_parents_dict[child_class].append(tuple(child.parent.get('class', ())))
                 else:
                     continue
-                get_parents_recursively_(child, class_parents_dict)
+                get_parents_of_child(child, class_parents_dict)
         else:
             if not tree.isspace(): #Just to avoid printing "\n" parsed from document.
                 pass
@@ -112,7 +112,7 @@ def get_parents_of_each_class(source_code_file):
         parsed_code = BeautifulSoup(source_code, 'html.parser')
         for child in parsed_code.childGenerator():
             if isinstance(child, Tag):
-                class_parents_dict = get_parents_recursively_(child, class_parents_dict={})
+                class_parents_dict = get_parents_of_child(child, class_parents_dict={})
     return class_parents_dict
                 
 
